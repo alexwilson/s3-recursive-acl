@@ -4,26 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-func putObjectACL(svc *s3.S3, bucket string, key string, cannedACL string) {
-	_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
-		ACL:    aws.String(cannedACL),
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-	fmt.Println(fmt.Sprintf("Updating '%s'", key))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
-	}
-}
-
 func main() {
 	var bucket, region, path, cannedACL string
+	var wg sync.WaitGroup
 	var counter int64
 	flag.StringVar(&region, "region", "ap-northeast-1", "AWS region")
 	flag.StringVar(&bucket, "bucket", "s3-bucket", "Bucket name")
@@ -41,11 +31,25 @@ func main() {
 	}, func(page *s3.ListObjectsOutput, lastPage bool) bool {
 		for _, object := range page.Contents {
 			key := *object.Key
-			go putObjectACL(svc, bucket, key, cannedACL)
 			counter++
+			go func(bucket string, key string, cannedACL string) {
+				wg.Add(1)
+				_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
+					ACL:    aws.String(cannedACL),
+					Bucket: aws.String(bucket),
+					Key:    aws.String(key),
+				})
+				fmt.Println(fmt.Sprintf("Updating '%s'", key))
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
+				}
+				defer wg.Done()
+			}(bucket, key, cannedACL)
 		}
 		return true
 	})
+
+	wg.Wait()
 
 	if err != nil {
 		panic(fmt.Sprintf("Failed to update object permissions in '%s', %v", bucket, err))

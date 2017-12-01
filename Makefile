@@ -1,5 +1,6 @@
 install:
-	glide install
+	go install s3-recursive-acl
 
 build:
-	go build main.go
+	glide install
+	go build s3-recursive-acl.go
