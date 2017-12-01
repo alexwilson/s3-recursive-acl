@@ -10,6 +10,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+func putObjectACL(svc *s3.S3, bucket string, key string, cannedACL string) {
+	_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
+		ACL:    aws.String(cannedACL),
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	fmt.Println(fmt.Sprintf("Updating '%s'", key))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
+	}
+}
+
 func main() {
 	var bucket, region, path, cannedACL string
 	var counter int64
@@ -28,16 +40,9 @@ func main() {
 		Bucket: aws.String(bucket),
 	}, func(page *s3.ListObjectsOutput, lastPage bool) bool {
 		for _, object := range page.Contents {
-			fmt.Println(fmt.Sprintf("Updating '%s'", *object.Key))
-			_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
-				ACL:    aws.String(cannedACL),
-				Bucket: aws.String(bucket),
-				Key:    object.Key,
-			})
+			key := *object.Key
+			go putObjectACL(svc, bucket, key, cannedACL)
 			counter++
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", *object.Key, err)
-			}
 		}
 		return true
 	})
