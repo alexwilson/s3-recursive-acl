@@ -1,6 +1,6 @@
 install:
-	go install s3-recursive-acl
+	go install ./s3-recursive-acl
 
 build:
-	glide install
+	dep ensure
 	go build s3-recursive-acl.go
