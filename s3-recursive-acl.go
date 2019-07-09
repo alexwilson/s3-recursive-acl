@@ -2,8 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
+	"log"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,20 +36,20 @@ func main() {
 			wg.Add(1)
 			go func(bucket string, key string, cannedACL string) {
 				if dryRun {
-					fmt.Println(fmt.Sprintf("[DRYRUN] Updating '%s'", key))
+					log.Printf("[DRYRUN] Updating '%s'", key)
 					_, _ = svc.GetObjectAcl(&s3.GetObjectAclInput{
 						Bucket: aws.String(bucket),
 						Key:    aws.String(key),
 					})
 				} else {
-					fmt.Println(fmt.Sprintf("Updating '%s'", key))
+					log.Printf("Updating '%s'", key)
 					_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
 						ACL:    aws.String(cannedACL),
 						Bucket: aws.String(bucket),
 						Key:    aws.String(key),
 					})
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
+						log.Printf("Failed to change permissions on %q, %v", key, err)
 					}
 				}
 				defer wg.Done()
@@ -62,8 +61,8 @@ func main() {
 	wg.Wait()
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update object permissions in '%s' (after %d objects), %v", bucket, counter, err))
+		log.Fatal(err)
 	}
 
-	fmt.Println(fmt.Sprintf("Successfully updated permissions on %d objects", counter))
+	log.Printf("Successfully updated permissions on %d objects", counter)
 }
