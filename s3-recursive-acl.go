@@ -12,18 +12,22 @@ import (
 )
 
 func main() {
-	var bucket, region, path, cannedACL string
+	var endpoint, bucket, region, path, cannedACL string
 	var wg sync.WaitGroup
 	var counter int64
+	flag.StringVar(&endpoint, "endpoint", "", "Endpoint URL")
 	flag.StringVar(&region, "region", "ap-northeast-1", "AWS region")
 	flag.StringVar(&bucket, "bucket", "s3-bucket", "Bucket name")
 	flag.StringVar(&path, "path", "/", "Path to recurse under")
 	flag.StringVar(&cannedACL, "acl", "public-read", "Canned ACL to assign objects")
 	flag.Parse()
 
-	svc := s3.New(session.New(), &aws.Config{
-		Region: aws.String(region),
-	})
+	var awsConfig = aws.Config{}
+	if endpoint != "" {
+		awsConfig.Endpoint = aws.String(endpoint)
+	}
+	awsConfig.Region = aws.String(region)
+	svc := s3.New(session.New(), &awsConfig)
 
 	err := svc.ListObjectsPages(&s3.ListObjectsInput{
 		Prefix: aws.String(path),
