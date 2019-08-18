@@ -32,8 +32,8 @@ func main() {
 		for _, object := range page.Contents {
 			key := *object.Key
 			counter++
+			wg.Add(1)
 			go func(bucket string, key string, cannedACL string) {
-				wg.Add(1)
 				_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
 					ACL:    aws.String(cannedACL),
 					Bucket: aws.String(bucket),
