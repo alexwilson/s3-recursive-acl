@@ -28,7 +28,7 @@ func main() {
 	flag.StringVar(&endpoint, "endpoint", "", "Endpoint URL")
 	flag.StringVar(&region, "region", "", "AWS region")
 	flag.StringVar(&bucket, "bucket", "", "Bucket name")
-	flag.StringVar(&path, "path", "/", "Path to recurse under")
+	flag.StringVar(&path, "path", "", "Path to recurse under")
 	flag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects")
 	flag.BoolVar(&versionFlag, "version", false, "Display version and exit")
 	flag.StringVar(&includeRegex, "regex", ".*", "regex to include")
