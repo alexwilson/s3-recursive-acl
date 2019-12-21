@@ -18,6 +18,12 @@ See https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl
 
 You can add `--dry-run` to perform only `list-object-acl` and `get-object-acl` operations without performing `put-object-acl`.
 
+## Regex matching
+
+You can use the `--regex` flag to apply ACL changes only on the object keys that matches the pattern. The golang  function used to match is `Regexp.MatchString(key)`
+
+See https://golang.org/pkg/regexp/#Regexp.MatchString
+
 ## Specific Endpoint
 
 You can use `--endpoint` to specify a different endpoint for connecting to S3.
