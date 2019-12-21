@@ -1,3 +1,7 @@
+VERSION=$(shell git describe --tags --always --long --dirty)
+BUILD_TIME=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+
 all: clean build
 
 clean:
@@ -8,4 +12,4 @@ install:
 
 build:
 	go mod init main || :
-	go build -o s3-recursive-acl s3-recursive-acl.go 
+	go build -ldflags="-s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" -o s3-recursive-acl s3-recursive-acl.go 

@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,9 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+var version string
+var buildTime string
+
 func main() {
 	var bucket, region, path, cannedACL, endpoint, jsonGrants string
-	var dryrun bool
+	var dryrun, versionFlag bool
 	var wg sync.WaitGroup
 	var awsConfig = aws.Config{}
 	var grants []*s3.Grant
@@ -24,10 +29,16 @@ func main() {
 	flag.StringVar(&bucket, "bucket", "", "Bucket name")
 	flag.StringVar(&path, "path", "/", "Path to recurse under")
 	flag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects")
+	flag.BoolVar(&versionFlag, "version", false, "Display version and exit")
 	flag.StringVar(&jsonGrants, "grants", "", "If set, acl flag is ignored. Grants part of ACL in json, ie : '[{\"Grantee\":{\"ID\":\"123456789\",\"Type\":\"CanonicalUser\"},\"Permission\":\"FULL_CONTROL\"}]'")
 	flag.BoolVar(&dryrun, "dry-run", false, "Don't perform ACL operations, just list")
 
 	flag.Parse()
+
+	if versionFlag {
+		fmt.Printf("s3-recursive-acl\nVersion : %s\nBuild time : %s\n", version, buildTime)
+		os.Exit(0)
+	}
 	flagset := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
 	if !flagset["bucket"] {
