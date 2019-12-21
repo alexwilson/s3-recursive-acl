@@ -1,6 +1,11 @@
+all: clean build
+
+clean:
+	rm -f go.sum s3-recursive-acl 
+
 install:
 	go install ./s3-recursive-acl
 
 build:
-	dep ensure
-	go build s3-recursive-acl.go
+	go mod init main || :
+	go build -o s3-recursive-acl s3-recursive-acl.go 

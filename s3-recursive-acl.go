@@ -1,9 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
-	"fmt"
-	"os"
+	"log"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,39 +12,88 @@ import (
 )
 
 func main() {
-	var bucket, region, path, cannedACL string
+	var bucket, region, path, cannedACL, endpoint, jsonGrants string
+	var dryrun bool
 	var wg sync.WaitGroup
-	var counter int64
-	flag.StringVar(&region, "region", "ap-northeast-1", "AWS region")
-	flag.StringVar(&bucket, "bucket", "s3-bucket", "Bucket name")
+	var awsConfig = aws.Config{}
+	var grants []*s3.Grant
+	var success, counter int64
+
+	flag.StringVar(&endpoint, "endpoint", "", "Endpoint URL")
+	flag.StringVar(&region, "region", "", "AWS region")
+	flag.StringVar(&bucket, "bucket", "", "Bucket name")
 	flag.StringVar(&path, "path", "/", "Path to recurse under")
-	flag.StringVar(&cannedACL, "acl", "public-read", "Canned ACL to assign objects")
+	flag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects")
+	flag.StringVar(&jsonGrants, "grants", "", "If set, acl flag is ignored. Grants part of ACL in json, ie : '[{\"Grantee\":{\"ID\":\"123456789\",\"Type\":\"CanonicalUser\"},\"Permission\":\"FULL_CONTROL\"}]'")
+	flag.BoolVar(&dryrun, "dry-run", false, "Don't perform ACL operations, just list")
+
 	flag.Parse()
+	flagset := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+	if !flagset["bucket"] {
+		log.Fatal("bucket is mandatory!")
+	}
+	if !flagset["region"] {
+		log.Fatal("region is mandatory!")
+	}
+	if !flagset["endpoint"] {
+		awsConfig.Endpoint = aws.String(endpoint)
+	}
+	if flagset["grants"] {
+		json.Unmarshal([]byte(jsonGrants), &grants)
+	}
+	awsConfig.Region = aws.String(region)
 
-	svc := s3.New(session.New(), &aws.Config{
-		Region: aws.String(region),
-	})
+	svc := s3.New(session.New(), &awsConfig)
 
-	err := svc.ListObjectsPages(&s3.ListObjectsInput{
+	err := svc.ListObjectsV2Pages(&s3.ListObjectsV2Input{
 		Prefix: aws.String(path),
 		Bucket: aws.String(bucket),
-	}, func(page *s3.ListObjectsOutput, lastPage bool) bool {
+	}, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 		for _, object := range page.Contents {
 			key := *object.Key
 			counter++
-			go func(bucket string, key string, cannedACL string) {
-				wg.Add(1)
-				_, err := svc.PutObjectAcl(&s3.PutObjectAclInput{
-					ACL:    aws.String(cannedACL),
-					Bucket: aws.String(bucket),
-					Key:    aws.String(key),
-				})
-				fmt.Println(fmt.Sprintf("Updating '%s'", key))
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to change permissions on '%s', %v", key, err)
-				}
+			wg.Add(1)
+			go func(bucket string, key string, cannedACL string, grants []*s3.Grant) {
 				defer wg.Done()
-			}(bucket, key, cannedACL)
+				var accessControlPolicy s3.AccessControlPolicy
+
+				var aclParam *s3.PutObjectAclInput
+				if grants != nil {
+					out, err := svc.GetObjectAcl(&s3.GetObjectAclInput{
+						Bucket: aws.String(bucket),
+						Key:    aws.String(key),
+					})
+					if err != nil {
+						log.Fatalf("Unable to read acl on %s, %v\n", key, err)
+					}
+
+					accessControlPolicy.Owner = out.Owner
+					accessControlPolicy.Grants = grants
+					aclParam = &s3.PutObjectAclInput{
+						Bucket:              aws.String(bucket),
+						Key:                 aws.String(key),
+						AccessControlPolicy: &accessControlPolicy,
+					}
+				} else {
+					aclParam = &s3.PutObjectAclInput{
+						ACL:    aws.String(cannedACL),
+						Bucket: aws.String(bucket),
+						Key:    aws.String(key),
+					}
+				}
+				log.Printf("Updating '%s'\n", key)
+				if !dryrun {
+					_, err := svc.PutObjectAcl(aclParam)
+					if err != nil {
+						log.Printf("Failed to change permissions on '%s', %s\n", key, err)
+					} else {
+						success++
+					}
+				} else {
+					success++
+				}
+			}(bucket, key, cannedACL, grants)
 		}
 		return true
 	})
@@ -52,8 +101,11 @@ func main() {
 	wg.Wait()
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update object permissions in '%s', %v", bucket, err))
+		log.Panicf("Failed to update object permissions in '%s', %v\n", bucket, err)
 	}
-
-	fmt.Println(fmt.Sprintf("Successfully updated permissions on %d objects", counter))
+	if !dryrun {
+		log.Printf("Updated permissions on %d objects out of %d\n", success, counter)
+	} else {
+		log.Printf("DRY RUN : Updated permissions on %d objects out of %d\n", success, counter)
+	}
 }
