@@ -46,5 +46,12 @@ Tip to get the proper structure right (using `jq` ) :
 $ AWS_PROFILE=default aws s3api  get-object-acl --bucket my-bucket-name-here --key my-key-here | jq -c .Grants
 ```
 
+## Control Parallelism
+
+The flag `parallel` can control the number of goroutine running simultaneously working on changing ACLs.
+The flag can be adjusted, beware that when you put a high number, the application can hit rates limits or end too many files open exception.
+
+Use the `help` flag to see the default value.
+
 
 
