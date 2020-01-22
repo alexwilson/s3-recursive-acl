@@ -24,7 +24,7 @@ var version string
 var buildTime string
 
 var successCnt, matchedCnt, errorCnt, objectCnt int64
-var dr dryrun
+var dryRun *dryrun
 
 /*
 
@@ -71,8 +71,9 @@ func changeACL(svc *s3.S3, bucket string, key string, cannedACL string, grants [
 			}
 		}
 
-		log.Printf("%s Updating '%s'\n", dr.prefix, key)
-		if !dr.active {
+		log.Printf("%s Updating '%s'\n", dryRun.prefix, key)
+		if !dryRun.active {
+			// dry mode
 			_, err := svc.PutObjectAcl(aclParam)
 			if err != nil {
 				log.Printf("Failed to change permissions on '%s', %s\n", key, err)
@@ -86,7 +87,7 @@ func changeACL(svc *s3.S3, bucket string, key string, cannedACL string, grants [
 	}
 }
 func stat() {
-	log.Printf("%s Summary : ACL changed : %d, objects matched regex : %d, total objects : %d, errors : %d\n", dr.prefix, successCnt, matchedCnt, objectCnt, errorCnt)
+	log.Printf("%s Summary : ACL changed : %d, objects matched regex : %d, total objects : %d, errors : %d\n", dryRun.prefix, successCnt, matchedCnt, objectCnt, errorCnt)
 }
 
 func main() {
@@ -143,9 +144,9 @@ func main() {
 	}
 
 	// Setup dryrun
-	dr := &dryrun{active: dryrunFlag}
+	dryRun = &dryrun{active: dryrunFlag}
 	if dryrunFlag {
-		dr.prefix = "DRY RUN:"
+		dryRun.prefix = "DRY RUN:"
 	}
 
 	// Setup AWS SDK
@@ -186,7 +187,7 @@ func main() {
 				jobs <- changeACL(svc, bucket, key, cannedACL, grants)
 
 			} else {
-				log.Printf("%s Skipping '%s'\n", dr.prefix, key)
+				log.Printf("%s Skipping '%s'\n", dryRun.prefix, key)
 			}
 		}
 		return true
