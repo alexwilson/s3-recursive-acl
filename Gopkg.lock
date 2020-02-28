@@ -50,6 +50,14 @@
   pruneopts = "UT"
   revision = "0b12d6b5"
 
+[[projects]]
+  digest = "1:bb90467981c5e812c4d1c78e498a1416b04cb5149dc5fa2200ab758c37488f6f"
+  name = "github.com/remeh/sizedwaitgroup"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5e7302b12ccef91dce9fde2f5bda6d5c7ea5d2eb"
+  version = "v1.0.0"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -57,6 +65,7 @@
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
+    "github.com/remeh/sizedwaitgroup",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
