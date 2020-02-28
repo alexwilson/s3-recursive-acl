@@ -3,4 +3,4 @@ install:
 
 build:
 	dep ensure
-	go build s3-recursive-acl.go
+	go build   s3-recursive-acl.go
