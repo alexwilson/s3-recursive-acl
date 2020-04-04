@@ -53,7 +53,9 @@ func changeACL(svc *s3.S3, bucket string, key string, cannedACL string, grants [
 				Key:    aws.String(key),
 			})
 			if err != nil {
-				log.Fatalf("Failed to read acl on %s, %v\n", key, err)
+				log.Printf("Failed to read acl on %s, %v\n", key, err)
+				atomic.AddInt64(&errorCnt, 1)
+				return
 			}
 
 			accessControlPolicy.Owner = out.Owner
@@ -154,7 +156,7 @@ func main() {
 		awsConfig.Endpoint = aws.String(endpoint)
 	}
 	awsConfig.Region = aws.String(region)
-	svc := s3.New(session.New(), &awsConfig)
+	svc := s3.New(session.Must(session.NewSession()), &awsConfig)
 
 	// Setup parallel jobs and channel, and graceful exit
 	jobs := make(chan func())
