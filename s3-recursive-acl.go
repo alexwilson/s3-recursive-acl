@@ -102,7 +102,7 @@ func main() {
 
 	flag.StringVar(&endpoint, "endpoint", "", "Endpoint URL")
 	flag.StringVar(&region, "region", "", "AWS region")
-	flag.IntVar(&parallel, "parallel", 512, "Number of parallel thread to run, a number too high may result in too many files open exception or hit a rate limit")
+	flag.IntVar(&parallel, "parallel", 32, "Number of parallel thread to run, a number too high may result in too many files open exception or hit a rate limit")
 	flag.StringVar(&bucket, "bucket", "", "Bucket name")
 	flag.StringVar(&path, "path", "", "Path to recurse under")
 	flag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects")
