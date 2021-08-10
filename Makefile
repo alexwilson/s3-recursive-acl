@@ -11,5 +11,5 @@ install:
 	go install ./s3-recursive-acl
 
 build:
-	go mod init main || :
+	go mod tidy
 	go build -ldflags="-s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" -o s3-recursive-acl s3-recursive-acl.go 
