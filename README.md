@@ -53,5 +53,11 @@ The flag can be adjusted, beware that when you put a high number, the applicatio
 
 Use the `help` flag to see the default value.
 
+## Install bash/zsh/fish completion
 
+```bash
+COMP_INSTALL=1 s3-recursive-acl
+```
+
+See [posener/complete/README.md](https://github.com/posener/complete/blob/master/README.md) for more details.
 
