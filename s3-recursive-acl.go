@@ -13,6 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+
+	"github.com/posener/complete/v2/compflag"
+	"github.com/posener/complete/v2/predict"
 )
 
 type dryrun struct {
@@ -93,25 +96,36 @@ func stat() {
 }
 
 func main() {
-	var bucket, region, path, cannedACL, endpoint, includeRegex, jsonGrants string
+	var bucket, profile, region, path, cannedACL, endpoint, includeRegex, jsonGrants string
 	var dryrunFlag, versionFlag bool
 	var parallel int
 	var wg sync.WaitGroup
 	var awsConfig = aws.Config{}
 	var grants []*s3.Grant
 
-	flag.StringVar(&endpoint, "endpoint", "", "Endpoint URL")
-	flag.StringVar(&region, "region", "", "AWS region")
-	flag.IntVar(&parallel, "parallel", 32, "Number of parallel thread to run, a number too high may result in too many files open exception or hit a rate limit")
-	flag.StringVar(&bucket, "bucket", "", "Bucket name")
-	flag.StringVar(&path, "path", "", "Path to recurse under")
-	flag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects")
-	flag.BoolVar(&versionFlag, "version", false, "Display version and exit")
-	flag.StringVar(&includeRegex, "regex", ".*", "regex to include")
-	flag.StringVar(&jsonGrants, "grants", "", "If set, acl flag is ignored. Grants part of ACL in json, ie : '[{\"Grantee\":{\"ID\":\"123456789\",\"Type\":\"CanonicalUser\"},\"Permission\":\"FULL_CONTROL\"}]'")
-	flag.BoolVar(&dryrunFlag, "dry-run", false, "Don't perform ACL operations, just list")
+	compflag.StringVar(&endpoint, "endpoint", "", "Endpoint URL", predict.OptValues(""))
+	compflag.StringVar(&profile, "profile", "", "AWS credentials profile name", predict.OptValues(""))
+	compflag.StringVar(&region, "region", "", "AWS region", predict.OptValues(""))
+	compflag.IntVar(&parallel, "parallel", 32, "Number of parallel thread to run, a number too high may result in too many files open exception or hit a rate limit", predict.OptValues(""))
+	compflag.StringVar(&bucket, "bucket", "", "Bucket name", predict.OptValues(""))
+	compflag.StringVar(&path, "path", "", "Path to recurse under", predict.OptValues(""))
+	compflag.BoolVar(&versionFlag, "version", false, "Display version and exit")
+	compflag.StringVar(&includeRegex, "regex", ".*", "regex to include", predict.OptValues(""))
+	compflag.StringVar(&jsonGrants, "grants", "", "If set, acl flag is ignored. Grants part of ACL in json, ie : '[{\"Grantee\":{\"ID\":\"123456789\",\"Type\":\"CanonicalUser\"},\"Permission\":\"FULL_CONTROL\"}]'", predict.OptValues(""))
+	compflag.BoolVar(&dryrunFlag, "dry-run", false, "Don't perform ACL operations, just list", predict.OptValues("true", "false"))
 
-	flag.Parse()
+	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl
+	compflag.StringVar(&cannedACL, "acl", "private", "Canned ACL to assign objects", predict.OptValues(
+		"private",
+		"public-read",
+		"public-read-write",
+		"aws-exec-read",
+		"authenticated-read",
+		"bucket-owner-read",
+		"bucket-owner-full-control",
+	))
+
+	compflag.Parse()
 
 	flagset := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
@@ -131,7 +145,28 @@ func main() {
 		log.Fatal("bucket is mandatory!")
 	}
 	if !flagset["region"] {
-		log.Fatal("region is mandatory!")
+		if region, ok := os.LookupEnv("AWS_REGION"); ok == true {
+			flag.Set("region", region)
+		} else if region, ok := os.LookupEnv("AWS_DEFAULT_REGION"); ok == true {
+			flag.Set("region", region)
+		} else {
+			log.Fatal("region is mandatory!")
+		}
+	}
+
+	// Set `AWS_PROFILE` env var if flag was provided on command line
+	if flagset["profile"] {
+		os.Setenv("AWS_PROFILE", profile)
+	}
+
+	// https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+	// https://github.com/aws/aws-sdk-go#configuring-credentials
+	// Enable SDK support for the shared configuration file if
+	// respective variable is set in environment
+	if _, ok := os.LookupEnv("AWS_SHARED_CREDENTIALS_FILE"); ok == true {
+		if _, ok := os.LookupEnv("AWS_SDK_LOAD_CONFIG"); ok != true {
+			os.Setenv("AWS_SDK_LOAD_CONFIG", "1")
+		}
 	}
 
 	// Convert json to object for grants
